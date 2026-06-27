@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avni — Motorsport Data Engineering</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+:root{
+  --bg: #0B0E14;
+  --panel: #11151F;
+  --panel-raised: #161B27;
+  --line: #232938;
+  --ink: #E8E9ED;
+  --ink-dim: #8B93A7;
+  --ink-faint: #545C70;
+  --red: #FF1E56;
+  --green: #00D9A3;
+  --amber: #FFB800;
+  --purple: #8B5CF6;
+}
+
+*{box-sizing:border-box; margin:0; padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  overflow-x:hidden;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.01ms !important; transition-duration:0.01ms !important;}
+}
+
+/* ===== SECTOR TIMING BAR (signature element) ===== */
+.sector-bar{
+  position:sticky; top:0; z-index:100;
+  display:flex; height:4px; width:100%;
+}
+.sector-seg{flex:1; background:var(--line); position:relative; overflow:hidden;}
+.sector-seg::after{
+  content:''; position:absolute; inset:0;
+  background:var(--green);
+  transform:translateX(-100%);
+  animation:sweep 3.2s ease-in-out infinite;
+}
+.sector-seg:nth-child(2)::after{animation-delay:0.4s; background:var(--purple);}
+.sector-seg:nth-child(3)::after{animation-delay:0.8s; background:var(--green);}
+.sector-seg:nth-child(4)::after{animation-delay:1.2s; background:var(--amber);}
+@keyframes sweep{
+  0%{transform:translateX(-100%);}
+  45%{transform:translateX(0);}
+  55%{transform:translateX(0);}
+  100%{transform:translateX(100%);}
+}
+
+/* ===== HEADER ===== */
+header{
+  padding:90px 8vw 60px;
+  border-bottom:1px solid var(--line);
+  position:relative;
+}
+.eyebrow{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px;
+  letter-spacing:0.18em;
+  color:var(--green);
+  text-transform:uppercase;
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:22px;
+}
+.eyebrow::before{
+  content:''; width:7px; height:7px; border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 0 rgba(0,217,163,0.5);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(0,217,163,0.45);}
+  70%{box-shadow:0 0 0 8px rgba(0,217,163,0);}
+  100%{box-shadow:0 0 0 0 rgba(0,217,163,0);}
+}
+h1.title{
+  font-family:'Oswald', sans-serif;
+  font-weight:700;
+  font-size:clamp(48px, 9vw, 108px);
+  letter-spacing:-0.01em;
+  line-height:0.95;
+  text-transform:uppercase;
+}
+h1.title .accent{color:var(--ink-faint);}
+.desc{
+  margin-top:28px;
+  max-width:620px;
+  font-size:17px;
+  line-height:1.6;
+  color:var(--ink-dim);
+}
+.desc strong{color:var(--ink); font-weight:500;}
+.header-meta{
+  margin-top:48px;
+  display:flex; gap:48px; flex-wrap:wrap;
+}
+.meta-block{font-family:'JetBrains Mono', monospace;}
+.meta-block .meta-label{font-size:11px; color:var(--ink-faint); letter-spacing:0.1em; text-transform:uppercase;}
+.meta-block .meta-value{font-size:15px; color:var(--ink); margin-top:4px;}
+.meta-value a{color:var(--green); text-decoration:none; border-bottom:1px solid rgba(0,217,163,0.3);}
+.meta-value a:hover{border-bottom-color:var(--green);}
+
+/* ===== PROJECT GRID ===== */
+.grid-section{padding:70px 8vw 100px;}
+.grid-label{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px; letter-spacing:0.18em; text-transform:uppercase;
+  color:var(--ink-faint);
+  margin-bottom:28px;
+  display:flex; align-items:center; gap:16px;
+}
+.grid-label::after{content:''; flex:1; height:1px; background:var(--line);}
+
+.project-grid{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:1px;
+  background:var(--line);
+  border:1px solid var(--line);
+}
+@media (max-width:860px){.project-grid{grid-template-columns:1fr;}}
+
+.card{
+  background:var(--panel);
+  padding:38px 36px;
+  cursor:pointer;
+  position:relative;
+  transition:background 0.25s ease;
+  display:flex; flex-direction:column; min-height:240px;
+}
+.card:hover{background:var(--panel-raised);}
+.card-top{display:flex; justify-content:space-between; align-items:flex-start;}
+.card-num{
+  font-family:'JetBrains Mono', monospace;
+  font-size:13px; color:var(--ink-faint); letter-spacing:0.05em;
+}
+.card-status{
+  font-family:'JetBrains Mono', monospace;
+  font-size:10px; letter-spacing:0.1em;
+  padding:4px 9px; border-radius:2px;
+  text-transform:uppercase;
+}
+.card-name{
+  font-family:'Oswald', sans-serif;
+  font-weight:600;
+  font-size:26px;
+  text-transform:uppercase;
+  margin-top:18px;
+  letter-spacing:0.01em;
+}
+.card-tag{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px;
+  color:var(--ink-faint);
+  margin-top:4px;
+}
+.card-desc{
+  margin-top:16px;
+  font-size:14.5px;
+  line-height:1.6;
+  color:var(--ink-dim);
+  flex:1;
+}
+.card-foot{
+  margin-top:22px;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.card-cta{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--ink);
+  display:flex; align-items:center; gap:8px;
+}
+.card-cta svg{width:14px; height:14px; transition:transform 0.2s ease;}
+.card:hover .card-cta svg{transform:translateX(4px);}
+.card-gh{
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; color:var(--ink-faint); text-decoration:none;
+}
+.card-gh:hover{color:var(--green);}
+.card[data-color="wake"] .card-status{background:rgba(255,30,86,0.12); color:var(--red);}
+.card[data-color="tire"] .card-status{background:rgba(255,184,0,0.12); color:var(--amber);}
+.card[data-color="ghost"] .card-status{background:rgba(139,92,246,0.12); color:var(--purple);}
+.card[data-color="ers"] .card-status{background:rgba(0,217,163,0.12); color:var(--green);}
+
+/* accent left-bar appears on hover */
+.card::before{
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  transform:scaleY(0); transition:transform 0.25s ease;
+}
+.card:hover::before{transform:scaleY(1);}
+.card[data-color="wake"]::before{background:var(--red);}
+.card[data-color="tire"]::before{background:var(--amber);}
+.card[data-color="ghost"]::before{background:var(--purple);}
+.card[data-color="ers"]::before{background:var(--green);}
+
+/* ===== TOOL VIEWS ===== */
+.tool-view{
+  display:none;
+  padding:50px 8vw 100px;
+  border-top:1px solid var(--line);
+}
+.tool-view.active{display:block;}
+.tool-back{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px; color:var(--ink-faint);
+  background:none; border:none; cursor:pointer;
+  display:flex; align-items:center; gap:8px;
+  margin-bottom:36px; letter-spacing:0.05em; text-transform:uppercase;
+  padding:0;
+}
+.tool-back:hover{color:var(--ink);}
+.tool-back svg{width:14px; height:14px;}
+
+.tool-head{
+  display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:24px;
+  margin-bottom:8px;
+}
+.tool-title{
+  font-family:'Oswald', sans-serif; font-weight:700;
+  font-size:clamp(32px, 5vw, 52px);
+  text-transform:uppercase;
+  letter-spacing:-0.01em;
+}
+.tool-sub{
+  font-family:'JetBrains Mono', monospace;
+  font-size:13px; color:var(--ink-dim);
+  margin-top:10px; max-width:560px; line-height:1.6;
+}
+.tool-gh-link{
+  font-family:'JetBrains Mono', monospace;
+  font-size:12px; color:var(--ink-faint); text-decoration:none;
+  border:1px solid var(--line); padding:9px 16px; border-radius:3px;
+  white-space:nowrap; display:flex; align-items:center; gap:8px;
+  transition:border-color 0.2s, color 0.2s;
+}
+.tool-gh-link:hover{border-color:var(--green); color:var(--green);}
+
+.tool-body{
+  margin-top:44px;
+  display:grid;
+  grid-template-columns:340px 1fr;
+  gap:1px;
+  background:var(--line);
+  border:1px solid var(--line);
+}
+@media (max-width:900px){.tool-body{grid-template-columns:1fr;}}
+
+.panel{background:var(--panel); padding:32px;}
+.panel-label{
+  font-family:'JetBrains Mono', monospace;
+  font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--ink-faint); margin-bottom:24px;
+  display:flex; align-items:center; gap:10px;
+}
+.panel-label::before{content:'▸'; color:var(--green);}
+
+.field{margin-bottom:22px;}
+.field label{
+  display:block; font-family:'JetBrains Mono', monospace;
+  font-size:11.5px; color:var(--ink-dim); margin-bottom:8px;
+  letter-spacing:0.03em;
+}
+.field .hint{color:var(--ink-faint); font-size:10.5px; display:block; margin-top:5px;}
+select, input[type="number"], input[type="text"]{
+  width:100%; background:var(--bg); border:1px solid var(--line);
+  color:var(--ink); padding:10px 12px; font-family:'JetBrains Mono', monospace;
+  font-size:13.5px; border-radius:3px; outline:none;
+  transition:border-color 0.2s;
+}
+select:focus, input:focus{border-color:var(--green);}
+select{cursor:pointer; appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238B93A7'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center;
+}
+.range-row{display:flex; align-items:center; gap:12px;}
+input[type="range"]{
+  flex:1; -webkit-appearance:none; height:3px; background:var(--line); border-radius:2px; outline:none;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+  background:var(--green); cursor:pointer; border:2px solid var(--bg);
+}
+.range-val{
+  font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--green);
+  min-width:48px; text-align:right;
+}
+.toggle-row{display:flex; gap:1px; background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
+.toggle-opt{
+  flex:1; text-align:center; padding:9px 6px; background:var(--bg);
+  font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-dim);
+  cursor:pointer; transition:background 0.15s, color 0.15s; user-select:none;
+}
+.toggle-opt.active{background:rgba(0,217,163,0.13); color:var(--green);}
+
+.run-btn{
+  width:100%; margin-top:8px; padding:14px;
+  background:var(--green); color:#06140F; border:none; border-radius:3px;
+  font-family:'JetBrains Mono', monospace; font-weight:700; font-size:13px;
+  letter-spacing:0.1em; text-transform:uppercase; cursor:pointer;
+  transition:opacity 0.15s, transform 0.1s;
+}
+.run-btn:hover{opacity:0.88;}
+.run-btn:active{transform:scale(0.98);}
+
+/* ===== TERMINAL OUTPUT ===== */
+.terminal{
+  background:#08090D; padding:32px; font-family:'JetBrains Mono', monospace;
+  font-size:13px; line-height:1.7; color:var(--ink-dim);
+  min-height:480px; max-height:680px; overflow-y:auto;
+}
+.terminal::-webkit-scrollbar{width:8px;}
+.terminal::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
+.t-placeholder{
+  color:var(--ink-faint); display:flex; flex-direction:column; align-items:center;
+  justify-content:center; height:420px; text-align:center; gap:14px;
+}
+.t-placeholder svg{width:36px; height:36px; opacity:0.4;}
+.t-rule{color:var(--ink-faint); opacity:0.5;}
+.t-h{color:var(--ink); font-weight:600; margin:18px 0 6px;}
+.t-h:first-child{margin-top:0;}
+.t-row{display:flex; justify-content:space-between; gap:16px; padding:2px 0;}
+.t-row .k{color:var(--ink-faint);}
+.t-row .v{color:var(--ink); text-align:right;}
+.t-good{color:var(--green);}
+.t-warn{color:var(--amber);}
+.t-bad{color:var(--red);}
+.t-diag{
+  margin-top:10px; padding:14px 16px; background:var(--panel-raised);
+  border-left:3px solid var(--green); border-radius:0 3px 3px 0; color:var(--ink);
+  font-size:12.5px; line-height:1.65;
+}
+.t-diag.warn{border-color:var(--amber);}
+.t-diag.bad{border-color:var(--red);}
+.t-tag{
+  display:inline-block; font-size:10.5px; letter-spacing:0.06em;
+  padding:3px 8px; border-radius:2px; margin-top:10px; text-transform:uppercase;
+}
+.blink{animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0;}}
+
+/* progress sim lines */
+.boot-line{opacity:0; animation:fadeIn 0.3s forwards;}
+@keyframes fadeIn{to{opacity:1;}}
+
+footer{
+  padding:40px 8vw; border-top:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+  font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--ink-faint);
+}
+footer a{color:var(--ink-dim); text-decoration:none;}
+footer a:hover{color:var(--green);}
+</style>
+</head>
+<body>
+
+<div class="sector-bar">
+  <div class="sector-seg"></div><div class="sector-seg"></div><div class="sector-seg"></div><div class="sector-seg"></div>
+</div>
+
+<!-- ===== HOME ===== -->
+<div id="home-view">
+<header>
+  <div class="eyebrow">Telemetry Systems · Live Pit Wall</div>
+  <h1 class="title">AVNI'S<br><span class="accent">PORTFOLIO</span></h1>
+  <p class="desc">A collection of motorsport Python projects built using the <strong>FastF1 library</strong> to analyze, clean, and sync real Formula 1 telemetry datasets.</p>
+  <div class="header-meta">
+    <div class="meta-block">
+      <div class="meta-label">Repository</div>
+      <div class="meta-value"><a href="https://github.com/ava2610/Avni-Code" target="_blank" rel="noopener">github.com/ava2610/Avni-Code</a></div>
+    </div>
+    <div class="meta-block">
+      <div class="meta-label">Stack</div>
+      <div class="meta-value">Python · FastF1 · Pandas-style Telemetry I/O</div>
+    </div>
+    <div class="meta-block">
+      <div class="meta-label">Active Modules</div>
+      <div class="meta-value">04</div>
+    </div>
+  </div>
+</header>
+
+<section class="grid-section">
+  <div class="grid-label">Select Module</div>
+  <div class="project-grid">
+
+    <div class="card" data-color="wake" data-tool="wake">
+      <div class="card-top"><span class="card-num">01 / AERO</span><span class="card-status">Wake Analysis</span></div>
+      <div class="card-name">Wake Analyzer</div>
+      <div class="card-tag">wake_analyzer.py</div>
+      <div class="card-desc">Pulls real telemetry to calculate downforce loss when a car runs inside a leading car's aero wake — tracking throttle traces and apex velocities across a reference corner and straight to measure dirty-air instability.</div>
+      <div class="card-foot">
+        <span class="card-cta">Open Console <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <a class="card-gh" href="https://github.com/ava2610/Avni-Code/blob/main/Wake%20analyzer.py" target="_blank" rel="noopener" onclick="event.stopPropagation()">View source ↗</a>
+      </div>
+    </div>
+
+    <div class="card" data-color="tire" data-tool="tire">
+      <div class="card-top"><span class="card-num">02 / STRATEGY</span><span class="card-status">Tire Degradation</span></div>
+      <div class="card-name">Tire Degradation</div>
+      <div class="card-tag">tire_degradation.py</div>
+      <div class="card-desc">Processes lateral/longitudinal load over a stint to calculate rubber wear. Accounts for track temperature, slip angle, and traffic gap to forecast the exact lap for a strategic pit stop, with a crisis-override branch for rain.</div>
+      <div class="card-foot">
+        <span class="card-cta">Open Console <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <a class="card-gh" href="https://github.com/ava2610/Avni-Code/blob/main/Tire%20degradation.py" target="_blank" rel="noopener" onclick="event.stopPropagation()">View source ↗</a>
+      </div>
+    </div>
+
+    <div class="card" data-color="ghost" data-tool="ghost">
+      <div class="card-top"><span class="card-num">03 / DRIVING</span><span class="card-status">Ghost Comparison</span></div>
+      <div class="card-name">Ghost Analyzer</div>
+      <div class="card-tag">ghost_analyzer.py</div>
+      <div class="card-desc">Overlays a driver's live lap against a pre-loaded perfect "ghost" lap. Using distance interpolation, it flags gaps across braking points, throttle profile, and minimum corner speed — then outputs an engineering directive.</div>
+      <div class="card-foot">
+        <span class="card-cta">Open Console <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <a class="card-gh" href="https://github.com/ava2610/Avni-Code/blob/main/Ghost%20Analyzer.py" target="_blank" rel="noopener" onclick="event.stopPropagation()">View source ↗</a>
+      </div>
+    </div>
+
+    <div class="card" data-color="ers" data-tool="ers">
+      <div class="card-top"><span class="card-num">04 / POWERTRAIN</span><span class="card-status">ERS Deployment</span></div>
+      <div class="card-name">ERS Mapper</div>
+      <div class="card-tag">ers_mapper.py</div>
+      <div class="card-desc">Maps hybrid battery state-of-charge across a full lap. Plots harvest thresholds against throttle position to isolate the exact points where MGU-K kinetic recovery switches over to MGU-H thermal deployment, under the 7MJ FIA cap.</div>
+      <div class="card-foot">
+        <span class="card-cta">Open Console <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <a class="card-gh" href="https://github.com/ava2610/Avni-Code/blob/main/ERS%20mapper.py" target="_blank" rel="noopener" onclick="event.stopPropagation()">View source ↗</a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <span>© Avni · Built on FastF1 telemetry</span>
+  <a href="https://github.com/ava2610/Avni-Code" target="_blank" rel="noopener">github.com/ava2610/Avni-Code ↗</a>
+</footer>
+</div>
+
+<!-- ===== WAKE ANALYZER VIEW ===== -->
+<div class="tool-view" id="view-wake">
+  <button class="tool-back" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to pit wall</button>
+  <div class="tool-head">
+    <div>
+      <div class="eyebrow" style="color:var(--red)">01 · Aero Wake Diagnostic</div>
+      <h2 class="tool-title">Wake Analyzer</h2>
+      <p class="tool-sub">Slipstream gain vs. downforce loss across a reference straight and corner, with throttle variance as the instability signature.</p>
+    </div>
+    <a class="tool-gh-link" href="https://github.com/ava2610/Avni-Code/blob/main/Wake%20analyzer.py" target="_blank" rel="noopener">View source.py ↗</a>
+  </div>
+
+  <div class="tool-body">
+    <div class="panel">
+      <div class="panel-label">Ingestion Parameters</div>
+      <div class="field">
+        <label>Session — Year / Event</label>
+        <div style="display:flex; gap:8px;">
+          <input type="number" id="wake-year" value="2024" style="flex:0 0 90px;">
+          <select id="wake-event" style="flex:1">
+            <option>Silverstone</option><option>Monza</option><option>Spa</option><option>Suzuka</option><option>Singapore</option><option>Bahrain</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Session Type</label>
+        <div class="toggle-row" id="wake-type-toggle">
+          <div class="toggle-opt active" data-v="R">RACE</div>
+          <div class="toggle-opt" data-v="Q">QUALI</div>
+          <div class="toggle-opt" data-v="FP2">FP2</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Target Driver (TLA)</label>
+        <input type="text" id="wake-driver" value="VER" maxlength="3" style="text-transform:uppercase">
+      </div>
+      <div class="field">
+        <label>High-Speed Reference Corner</label>
+        <input type="text" id="wake-corner" value="Copse">
+      </div>
+      <div class="field">
+        <label>Reference Straight</label>
+        <input type="text" id="wake-straight" value="Hangar Straight">
+      </div>
+      <div class="field">
+        <label>Gap to Car Ahead — <span class="range-val" id="wake-gap-val">0.6s</span></label>
+        <input type="range" id="wake-gap" min="0" max="20" step="1" value="6" oninput="updateRangeLabel('wake-gap','wake-gap-val', v=>(v/10).toFixed(1)+'s')">
+        <span class="field hint">Below ~1.0s = inside the dirty-air zone.</span>
+      </div>
+      <button class="run-btn" onclick="runWake()">▶ Run Diagnostic</button>
+    </div>
+
+    <div class="terminal" id="wake-terminal">
+      <div class="t-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        <div>Awaiting telemetry pull.<br>Set parameters and run diagnostic.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TIRE DEGRADATION VIEW ===== -->
+<div class="tool-view" id="view-tire">
+  <button class="tool-back" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to pit wall</button>
+  <div class="tool-head">
+    <div>
+      <div class="eyebrow" style="color:var(--amber)">02 · Tire Strategy Terminal</div>
+      <h2 class="tool-title">Tire Degradation</h2>
+      <p class="tool-sub">Forecasts the compound cliff lap from track wear factor, temperature, setup bias, and traffic — with a rain crisis-override branch.</p>
+    </div>
+    <a class="tool-gh-link" href="https://github.com/ava2610/Avni-Code/blob/main/Tire%20degradation.py" target="_blank" rel="noopener">View source.py ↗</a>
+  </div>
+
+  <div class="tool-body">
+    <div class="panel">
+      <div class="panel-label">Strategic Input</div>
+      <div class="field">
+        <label>Driver Name</label>
+        <input type="text" id="tire-driver" value="Driver 1">
+      </div>
+      <div class="field">
+        <label>Circuit</label>
+        <select id="tire-circuit">
+          <option>Monza</option><option selected>Silverstone</option><option>Singapore</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Starting Compound</label>
+        <div class="toggle-row" id="tire-compound-toggle">
+          <div class="toggle-opt" data-v="Soft">SOFT</div>
+          <div class="toggle-opt active" data-v="Medium">MEDIUM</div>
+          <div class="toggle-opt" data-v="Hard">HARD</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Track Temperature</label>
+        <div class="toggle-row" id="tire-temp-toggle">
+          <div class="toggle-opt active" data-v="Standard">STANDARD</div>
+          <div class="toggle-opt" data-v="Scorching">SCORCHING</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>High Slip Angle Setup (Oversteer)</label>
+        <div class="toggle-row" id="tire-slip-toggle">
+          <div class="toggle-opt" data-v="N">NO</div>
+          <div class="toggle-opt" data-v="Y">YES</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Gap to Car Ahead — <span class="range-val" id="tire-gap-val">1.5s</span></label>
+        <input type="range" id="tire-gap" min="0" max="50" step="1" value="15" oninput="updateRangeLabel('tire-gap','tire-gap-val', v=>(v/10).toFixed(1)+'s')">
+      </div>
+      <div class="field">
+        <label>Crisis Override</label>
+        <div class="toggle-row" id="tire-crisis-toggle">
+          <div class="toggle-opt active" data-v="N">OFF</div>
+          <div class="toggle-opt" data-v="Y">RAIN INCOMING</div>
+        </div>
+      </div>
+      <button class="run-btn" onclick="runTire()">▶ Compute Strategy</button>
+    </div>
+
+    <div class="terminal" id="tire-terminal">
+      <div class="t-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/></svg>
+        <div>Strategy terminal idle.<br>Configure stint and compute.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GHOST ANALYZER VIEW ===== -->
+<div class="tool-view" id="view-ghost">
+  <button class="tool-back" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to pit wall</button>
+  <div class="tool-head">
+    <div>
+      <div class="eyebrow" style="color:var(--purple)">03 · Kinematic Ghost Overlay</div>
+      <h2 class="tool-title">Ghost Analyzer</h2>
+      <p class="tool-sub">Compares your braking point, peak pressure, and apex V-min against a tire-age-adjusted ghost target to diagnose entry and apex behavior.</p>
+    </div>
+    <a class="tool-gh-link" href="https://github.com/ava2610/Avni-Code/blob/main/Ghost%20Analyzer.py" target="_blank" rel="noopener">View source.py ↗</a>
+  </div>
+
+  <div class="tool-body">
+    <div class="panel">
+      <div class="panel-label">Simulator Input</div>
+      <div class="field">
+        <label>Corner Profile</label>
+        <select id="ghost-profile">
+          <option value="Monza_T1">Monza T1 — Heavy Braking</option>
+          <option value="Silverstone_Copse">Silverstone Copse — High-Speed Aero</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tire Age — <span class="range-val" id="ghost-age-val">8 laps</span></label>
+        <input type="range" id="ghost-age" min="0" max="40" step="1" value="8" oninput="updateRangeLabel('ghost-age','ghost-age-val', v=>v+' laps')">
+      </div>
+      <div class="field">
+        <label>Braking Point Marker (m before corner)</label>
+        <input type="number" id="ghost-brake" value="135">
+      </div>
+      <div class="field">
+        <label>Peak Brake Pressure (%)</label>
+        <input type="number" id="ghost-pressure" value="92">
+      </div>
+      <div class="field">
+        <label>Apex V-Min (km/h)</label>
+        <input type="number" id="ghost-vmin" value="70">
+      </div>
+      <div class="field">
+        <label>Throttle Application</label>
+        <div class="toggle-row" id="ghost-throttle-toggle">
+          <div class="toggle-opt" data-v="Before">BEFORE</div>
+          <div class="toggle-opt active" data-v="At">AT APEX</div>
+          <div class="toggle-opt" data-v="After">AFTER</div>
+        </div>
+      </div>
+      <button class="run-btn" onclick="runGhost()">▶ Correlate Telemetry</button>
+    </div>
+
+    <div class="terminal" id="ghost-terminal">
+      <div class="t-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20"/></svg>
+        <div>No ghost loaded.<br>Enter your lap inputs to correlate.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ERS MAPPER VIEW ===== -->
+<div class="tool-view" id="view-ers">
+  <button class="tool-back" onclick="goHome()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>Back to pit wall</button>
+  <div class="tool-head">
+    <div>
+      <div class="eyebrow" style="color:var(--green)">04 · Hybrid Kinetic Deployment</div>
+      <h2 class="tool-title">ERS Mapper</h2>
+      <p class="tool-sub">Tracks MGU-K harvest against deployment corner-by-corner across a full lap, enforcing the 7MJ FIA energy cap and 100kW derating ramps.</p>
+    </div>
+    <a class="tool-gh-link" href="https://github.com/ava2610/Avni-Code/blob/main/ERS%20mapper.py" target="_blank" rel="noopener">View source.py ↗</a>
+  </div>
+
+  <div class="tool-body">
+    <div class="panel">
+      <div class="panel-label">Kinetic Input</div>
+      <div class="field">
+        <label>Circuit</label>
+        <select id="ers-circuit">
+          <option>Monza</option><option>Suzuka</option><option>Silverstone</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Target Engine Mode</label>
+        <div class="toggle-row" id="ers-mode-toggle">
+          <div class="toggle-opt" data-v="Recharge">RECHARGE</div>
+          <div class="toggle-opt active" data-v="Balanced">BALANCED</div>
+          <div class="toggle-opt" data-v="Overtake">OVERTAKE</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Current Battery Charge — <span class="range-val" id="ers-soc-val">55%</span></label>
+        <input type="range" id="ers-soc" min="0" max="100" step="1" value="55" oninput="updateRangeLabel('ers-soc','ers-soc-val', v=>v+'%')">
+      </div>
+      <div class="field">
+        <label>Gap to Car Ahead — <span class="range-val" id="ers-gap-val">0.8s</span></label>
+        <input type="range" id="ers-gap" min="0" max="30" step="1" value="8" oninput="updateRangeLabel('ers-gap','ers-gap-val', v=>(v/10).toFixed(1)+'s')">
+      </div>
+      <button class="run-btn" onclick="runErs()">▶ Map Deployment</button>
+    </div>
+
+    <div class="terminal" id="ers-terminal">
+      <div class="t-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+        <div>ERS module idle.<br>Set lap parameters to map deployment.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== NAVIGATION ===================== */
+function goHome(){
+  document.querySelectorAll('.tool-view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('home-view').style.display='block';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.querySelectorAll('.card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    const tool = card.dataset.tool;
+    document.getElementById('home-view').style.display='none';
+    document.querySelectorAll('.tool-view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+tool).classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+
+/* ===================== SHARED UTILITIES ===================== */
+function updateRangeLabel(inputId, labelId, fmt){
+  const v = document.getElementById(inputId).value;
+  document.getElementById(labelId).textContent = fmt(v);
+}
+document.querySelectorAll('.toggle-row').forEach(row=>{
+  row.querySelectorAll('.toggle-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      row.querySelectorAll('.toggle-opt').forEach(o=>o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+});
+function toggleVal(rowId){
+  return document.getElementById(rowId).querySelector('.toggle-opt.active').dataset.v;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function bootSequence(termEl, lines){
+  termEl.innerHTML = '';
+  for(const line of lines){
+    const div = document.createElement('div');
+    div.className = 'boot-line t-rule';
+    div.textContent = line;
+    termEl.appendChild(div);
+    termEl.scrollTop = termEl.scrollHeight;
+    await new Promise(r=>setTimeout(r, 90));
+  }
+}
+
+/* ===================== 01 — WAKE ANALYZER ===================== */
+async function runWake(){
+  const term = document.getElementById('wake-terminal');
+  const year = document.getElementById('wake-year').value;
+  const event = document.getElementById('wake-event').value;
+  const sType = toggleVal('wake-type-toggle');
+  const driver = document.getElementById('wake-driver').value.trim().toUpperCase() || 'VER';
+  const corner = document.getElementById('wake-corner').value.trim() || 'Copse';
+  const straight = document.getElementById('wake-straight').value.trim() || 'Hangar Straight';
+  const gap = document.getElementById('wake-gap').value/10;
+
+  await bootSequence(term, [
+    '[EXECUTING DATA PIPELINE...]',
+    `[||||| ] Fetching FIA API Telemetry — ${year} ${event} (${sType})`,
+    '[|||||||| ] Applying IQR Outlier Rejection',
+    '[||||||||||||  ] Calculating Grid-Median Track Evolution',
+    '[||||||||||||||| ] Decoupling Tire Degradation',
+    '[|||||||||||||||||| ] Computing Throttle Variance Index',
+    '[||||||||||||||||||||] Structuring ML Tensor'
+  ]);
+
+  // Deterministic pseudo-random from driver+event+year for repeatable but varied output
+  function seedFrom(str){ let h=0; for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))|0; } return Math.abs(h); }
+  const seed = seedFrom(driver+event+year+sType);
+  const rand = (min,max,salt)=>{ const s = Math.sin(seed+salt)*10000; const frac = s - Math.floor(s); return min + frac*(max-min); };
+
+  const totalLaps = sType==='R' ? Math.round(rand(48,58,1)) : Math.round(rand(14,22,1));
+  const cleanLaps = Math.max(3, Math.round(totalLaps * (0.3 + rand(0,0.15,2))));
+  const dirtyLaps = totalLaps - cleanLaps;
+
+  // Inside dirty air (gap < ~1.2s) makes the slipstream/wake effect much more pronounced
+  const inWake = gap < 1.2;
+  const proximityFactor = inWake ? (1.2 - gap)/1.2 : 0.15;
+
+  const slipstreamGain = +(0.14 + proximityFactor*0.22).toFixed(2);
+  const downforceLoss = +(0.32 + proximityFactor*0.55).toFixed(2);
+  const netDelta = +(slipstreamGain - downforceLoss).toFixed(2);
+
+  const cleanVariance = +(1.0 + rand(0,0.6,3)).toFixed(1);
+  const dirtyVariance = +(cleanVariance + 8 + proximityFactor*10).toFixed(1);
+
+  const envOffset = -0.012;
+  const degOffset = +0.065;
+
+  let instabilityTag, instabilityClass;
+  if(dirtyVariance > 18){ instabilityTag='SEVERE REAR INSTABILITY'; instabilityClass='bad'; }
+  else if(dirtyVariance > 11){ instabilityTag='MODERATE REAR INSTABILITY'; instabilityClass='warn'; }
+  else { instabilityTag='STABLE / MINOR DISTURBANCE'; instabilityClass='good'; }
+
+  const tensorName = `dataset_${driver}_${event.slice(0,3).toUpperCase()}_${String(year).slice(-2)}.json`;
+
+  term.innerHTML = `
+<div class="t-h">&gt;&gt; WAKE DIAGNOSTIC: ${esc(driver)} (${esc(event.toUpperCase())}) &lt;&lt;</div>
+<div class="t-row"><span class="k">Session</span><span class="v">${esc(year)} ${esc(event)} · ${esc(sType)}</span></div>
+<div class="t-row"><span class="k">Dataset</span><span class="v">${totalLaps} laps (${cleanLaps} clean air / ${dirtyLaps} dirty air)</span></div>
+<div class="t-row"><span class="k">Gap to car ahead</span><span class="v" style="color:${inWake?'var(--red)':'var(--green)'}">${gap.toFixed(1)}s ${inWake?'— inside wake':'— clear air'}</span></div>
+<div class="t-row"><span class="k">Environmental offset</span><span class="v">${envOffset}s/lap (track evolution subtracted)</span></div>
+<div class="t-row"><span class="k">Degradation offset</span><span class="v">+${degOffset}s/lap (tire wear decoupled)</span></div>
+
+<div class="t-h">MICRO-SECTOR DELTAS</div>
+<div class="t-row"><span class="k">${esc(straight)} (Slipstream)</span><span class="v t-good">+${slipstreamGain}s — drag reduction</span></div>
+<div class="t-row"><span class="k">${esc(corner)} Corner (Wake)</span><span class="v t-bad">−${downforceLoss}s — downforce loss</span></div>
+<div class="t-row"><span class="k">Net micro-sector delta</span><span class="v" style="color:${netDelta<0?'var(--red)':'var(--green)'}">${netDelta>0?'+':''}${netDelta}s</span></div>
+
+<div class="t-h">THROTTLE VARIANCE INDEX</div>
+<div class="t-row"><span class="k">Clean air throttle variance</span><span class="v t-good">${cleanVariance}% — smooth curve</span></div>
+<div class="t-row"><span class="k">Dirty air throttle variance</span><span class="v t-${instabilityClass==='bad'?'bad':instabilityClass==='warn'?'warn':'good'}">${dirtyVariance}% — stuttering / lift-offs</span></div>
+<span class="t-tag" style="background:${instabilityClass==='bad'?'rgba(255,30,86,0.14)':instabilityClass==='warn'?'rgba(255,184,0,0.14)':'rgba(0,217,163,0.14)'}; color:${instabilityClass==='bad'?'var(--red)':instabilityClass==='warn'?'var(--amber)':'var(--green)'}">${instabilityTag}</span>
+
+<div class="t-h">DATA PIPELINE EXPORT</div>
+<div class="t-row"><span class="k">Format</span><span class="v">.json (3D tensor)</span></div>
+<div class="t-row"><span class="k">Structure</span><span class="v">[Lap, Distance, Speed, Throttle, Brake, Wake_Flag]</span></div>
+<div class="t-row"><span class="k">Status</span><span class="v t-good">EXPORT SUCCESS — ${esc(tensorName)}</span></div>
+
+<div class="t-diag ${instabilityClass}">
+<strong>SYSTEM LOG —</strong> Slipstream advantage (+${slipstreamGain}s) is ${netDelta<0?'negated':'partially offset'} by wake-induced downforce loss (−${downforceLoss}s) at ${esc(corner)}.
+Throttle variance of ${dirtyVariance}% in dirty air indicates ${instabilityTag.toLowerCase()}. Dataset normalized and exported for model training.
+</div>`;
+  term.scrollTop = 0;
+}
+
+/* ===================== 02 — TIRE DEGRADATION ===================== */
+const TRACK_DB = {
+  Monza: { wear_factor:0.8, stress:"Rear (Heavy Traction)", type:"Low Downforce / High Speed" },
+  Silverstone: { wear_factor:1.4, stress:"Front-Left (Critical Structural Stress)", type:"High Speed / High Lateral Load" },
+  Singapore: { wear_factor:1.1, stress:"Rear (Heavy Traction)", type:"High Downforce / Street Circuit" }
+};
+const BASE_TIRES = { Soft:22, Medium:35, Hard:55 };
+
+async function runTire(){
+  const term = document.getElementById('tire-terminal');
+  const driverName = document.getElementById('tire-driver').value.trim() || 'Driver 1';
+  const track = document.getElementById('tire-circuit').value;
+  const startTire = toggleVal('tire-compound-toggle');
+  const trackTemp = toggleVal('tire-temp-toggle');
+  const slipAngle = toggleVal('tire-slip-toggle');
+  const gap = document.getElementById('tire-gap').value/10;
+  const crisis = toggleVal('tire-crisis-toggle');
+
+  await bootSequence(term, [
+    '[CALCULATING KINEMATIC DROP-OFF...]',
+    trackTemp==='Scorching' ? '[||||||| ] Applying Scorching Track Penalty (−10% Overall Life)' : '[||||||| ] Track temperature nominal — no penalty',
+    slipAngle==='Y' ? '[||||||||||||] Applying High Slip Angle Penalty (+12% Rear Wear)' : '[||||||||||||] Setup bias neutral',
+    `[||||||||||||||||] Analyzing Asymmetric Stress (Limiting Tire: ${TRACK_DB[track].stress})`,
+    '[||||||||||||||||||||] Calculation Complete.'
+  ]);
+
+  const data = TRACK_DB[track];
+  const baseCliff = Math.trunc(BASE_TIRES[startTire] / data.wear_factor);
+  let adjustedCliff = baseCliff;
+  if(trackTemp==='Scorching') adjustedCliff -= Math.trunc(baseCliff*0.10);
+  if(slipAngle==='Y') adjustedCliff -= Math.trunc(baseCliff*0.12);
+
+  const undercutStatus = gap <= 1.0;
+  const pitLap = undercutStatus ? adjustedCliff - 3 : adjustedCliff - 1;
+
+  let crisisBlock = '';
+  if(crisis === 'Y'){
+    crisisBlock = `
+<div class="t-h">SECONDARY STRATEGY PROTOCOL — CRISIS OVERRIDE</div>
+<div class="t-diag warn">
+<strong>PLAN B —</strong> Precipitation imminent before the hard-compound temperature window opens.
+ABORT lap ${pitLap} stop. Extend stint, bleed pace, and survive until the Inters window opens.
+</div>`;
+  }
+
+  const tempText = trackTemp==='Scorching' ? 'Scorching track temperatures and high' : 'High';
+  const strategyText = undercutStatus ? 'running an aggressive undercut to jump into clean air' : 'running a standard primary strategy';
+  const weatherText = crisis==='Y' ? 'Rain threatening.' : 'Conditions stable.';
+
+  term.innerHTML = `
+<div class="t-h">&gt;&gt; PRIMARY STRATEGY PROTOCOL &lt;&lt;</div>
+<div class="t-row"><span class="k">Circuit</span><span class="v">${esc(track.toUpperCase())} (${esc(data.type)})</span></div>
+<div class="t-row"><span class="k">Limiting tire</span><span class="v t-warn">${esc(data.stress)}</span></div>
+<div class="t-row"><span class="k">Base tire cliff</span><span class="v">Lap ${baseCliff}</span></div>
+<div class="t-row"><span class="k">Adjusted cliff</span><span class="v">Lap ${adjustedCliff} (temp + slip penalties)</span></div>
+
+<div class="t-h">TRAFFIC ANALYSIS</div>
+<div class="t-row"><span class="k">Gap to car ahead</span><span class="v">${gap.toFixed(1)}s</span></div>
+${undercutStatus ? `
+<div class="t-row"><span class="k">Status</span><span class="v t-bad">Within 1.0s — DRS window</span></div>
+<div class="t-diag bad"><strong>DECISION —</strong> Initiate aggressive undercut. Box on lap ${pitLap} for hard compound. Target clear air on exit.</div>
+` : `
+<div class="t-row"><span class="k">Status</span><span class="v t-good">Outside DRS window — clean air secured</span></div>
+<div class="t-diag"><strong>DECISION —</strong> Standard pit protocol. Box on lap ${pitLap} for hard compound.</div>
+`}
+${crisisBlock}
+<div class="t-h">MEDIA DEPT. TRANSLATION BRIEF</div>
+<div class="t-diag" style="border-color:var(--ink-faint); color:var(--ink-dim);">
+${tempText} degradation at ${esc(track)} today, especially on the ${esc(data.stress)}. ${esc(driverName)} is ${strategyText} and secure track position. ${weatherText}
+</div>`;
+  term.scrollTop = 0;
+}
+
+/* ===================== 03 — GHOST ANALYZER ===================== */
+const PROFILES = {
+  Monza_T1: { name:"MONZA TURN 1 (Heavy Braking)", base_brake:120, base_vmin:78, base_throttle:"At Apex", grip_offset_factor:1.25, vmin_offset_factor:0.5, straight_name:"Curva Grande", time_penalty_multiplier:0.05 },
+  Silverstone_Copse: { name:"SILVERSTONE COPSE (High-Speed Aero)", base_brake:25, base_vmin:265, base_throttle:"Before Apex", grip_offset_factor:0.8, vmin_offset_factor:1.5, straight_name:"Maggotts Approach", time_penalty_multiplier:0.03 }
+};
+
+async function runGhost(){
+  const term = document.getElementById('ghost-terminal');
+  const profileKey = document.getElementById('ghost-profile').value;
+  const tireAge = parseInt(document.getElementById('ghost-age').value, 10);
+  const driverBrake = parseInt(document.getElementById('ghost-brake').value, 10);
+  const driverVmin = parseInt(document.getElementById('ghost-vmin').value, 10);
+  const driverThrottle = toggleVal('ghost-throttle-toggle');
+  const corner = PROFILES[profileKey];
+
+  await bootSequence(term, [
+    '[PROCESSING TELEMETRY CORRELATION...]',
+    `[||||||| ] Applying Dynamic Grip Offset (Tire Age = ${tireAge})`,
+    '[||||||||||||] Cross-Referencing Entry/Exit Deltas',
+    '[||||||||||||||||] Calculating Area-Under-Curve Time Penalty',
+    '[||||||||||||||||||||] Analysis Complete.'
+  ]);
+
+  const targetBrake = Math.trunc(corner.base_brake + (tireAge * corner.grip_offset_factor));
+  const targetVmin = Math.trunc(corner.base_vmin - (tireAge * corner.vmin_offset_factor));
+  const brakeDelta = driverBrake - targetBrake;
+  const vminDelta = driverVmin - targetVmin;
+
+  let brakeStatus = 'OPTIMAL ENTRY';
+  if(brakeDelta < -15) brakeStatus = 'LATE BRAKING';
+  else if(brakeDelta > 15) brakeStatus = 'EARLY BRAKING';
+
+  let vminStatus = 'OPTIMAL APEX';
+  if(vminDelta < -5) vminStatus = 'OVERSLOWED';
+  else if(vminDelta > 5) vminStatus = 'WASHING WIDE';
+
+  let diagnosis, action, profileFlag, timeLoss, diagClass='good';
+  if(brakeStatus==='LATE BRAKING' && vminStatus==='OVERSLOWED'){
+    diagnosis = `Braking point compromised by ${Math.abs(brakeDelta)} meters. Late braking saturated the front axle, forcing a missed geometric apex. Chassis rotation was compromised, resulting in a ${Math.abs(vminDelta)} km/h V-Min deficit and delayed throttle application to prevent rear lockup.`;
+    action = `Shift braking point back to ${targetBrake}m to account for tire degradation offset. Prioritize entry stability over late braking.`;
+    profileFlag = 'OVER-DRIVEN ENTRY / V-SHAPE';
+    timeLoss = +(Math.abs(vminDelta)*corner.time_penalty_multiplier + tireAge*0.01).toFixed(2);
+    diagClass = 'bad';
+  } else if(brakeStatus==='EARLY BRAKING'){
+    diagnosis = `Braking point initiated ${Math.abs(brakeDelta)} meters early. Chassis under-loaded on entry, resulting in coasting before the apex and wasted entry momentum.`;
+    action = `Push braking point deeper to ${targetBrake}m. Trust the aerodynamic platform on entry.`;
+    profileFlag = 'UNDER-DRIVEN ENTRY / U-SHAPE';
+    timeLoss = +(Math.abs(brakeDelta)*0.02).toFixed(2);
+    diagClass = 'warn';
+  } else {
+    diagnosis = 'Kinematic sequence stable. Entry and apex parameters within acceptable operational window.';
+    action = 'Maintain current phase targets. Shift focus to micro-adjusting throttle application out of the corner.';
+    profileFlag = 'OPTIMAL / BALANCED';
+    timeLoss = 0.00;
+    diagClass = 'good';
+  }
+
+  term.innerHTML = `
+<div class="t-h">&gt;&gt; CORNER DIAGNOSTIC: ${esc(corner.name)} &lt;&lt;</div>
+<div class="t-row"><span class="k">Reference baseline</span><span class="v">Ghost driver (fresh softs)</span></div>
+<div class="t-row"><span class="k">Adjusted target</span><span class="v">Ghost driver (${tireAge}-lap degradation applied)</span></div>
+
+<div class="t-h">PHASE 1 — ENTRY DYNAMICS</div>
+<div class="t-row"><span class="k">Target braking point</span><span class="v">${targetBrake}m (baseline ${corner.base_brake}m + ${Math.trunc(tireAge*corner.grip_offset_factor)}m grip offset)</span></div>
+<div class="t-row"><span class="k">Driver braking point</span><span class="v">${driverBrake}m</span></div>
+<div class="t-row"><span class="k">Telemetry delta</span><span class="v ${brakeStatus==='OPTIMAL ENTRY'?'t-good':'t-warn'}">${brakeDelta}m (${brakeStatus})</span></div>
+
+<div class="t-h">PHASE 2 — APEX KINEMATICS</div>
+<div class="t-row"><span class="k">Target V-min</span><span class="v">${targetVmin} km/h</span></div>
+<div class="t-row"><span class="k">Driver V-min</span><span class="v">${driverVmin} km/h</span></div>
+<div class="t-row"><span class="k">Telemetry delta</span><span class="v ${vminStatus==='OPTIMAL APEX'?'t-good':'t-warn'}">${vminDelta} km/h (${vminStatus})</span></div>
+
+<div class="t-h">PHASE 3 — EXIT TRAJECTORY</div>
+<div class="t-row"><span class="k">Target throttle</span><span class="v">${esc(corner.base_throttle)}</span></div>
+<div class="t-row"><span class="k">Driver throttle</span><span class="v">${esc(driverThrottle)} apex</span></div>
+
+<div class="t-h">ENGINEERING CORRELATION &amp; DIRECTIVE</div>
+<div class="t-diag ${diagClass}"><strong>DIAGNOSIS —</strong> ${esc(diagnosis)}</div>
+<div class="t-diag ${diagClass}" style="margin-top:8px;"><strong>DIRECTIVE —</strong> ${esc(action)}</div>
+
+<div class="t-h">LAP TIME PROJECTION</div>
+<div class="t-row"><span class="k">Estimated time loss (T1 → ${esc(corner.straight_name)} exit)</span><span class="v ${timeLoss>0?'t-bad':'t-good'}">+${timeLoss}s</span></div>
+
+<span class="t-tag" style="background:${diagClass==='bad'?'rgba(255,30,86,0.14)':diagClass==='warn'?'rgba(255,184,0,0.14)':'rgba(0,217,163,0.14)'}; color:${diagClass==='bad'?'var(--red)':diagClass==='warn'?'var(--amber)':'var(--green)'}">${profileFlag}</span>`;
+  term.scrollTop = 0;
+}
+
+/* ===================== 04 — ERS MAPPER ===================== */
+const CIRCUITS = {
+  Monza: { type:"Low Downforce / High Speed", t1_name:"Turn 1 (Rettifilo)", t1_harvest:12, straight_name:"Curva Grande", t2_name:"Turn 4 (Roggia)", t2_harvest:5, deploy_corners:"Lesmo 1 & 2 Exits", deploy_amount1:15, s3_complex:"Ascari Chicane", deploy_amount2:20, final_corner:"Parabolica", final_harvest:8 },
+  Suzuka: { type:"High Downforce / Figure-Eight Circuit", t1_name:"Turn 1 & 2", t1_harvest:8, straight_name:"S Curves (T3-T7)", t2_name:"The Hairpin (T11)", t2_harvest:10, deploy_corners:"Spoon Curve Exit", deploy_amount1:15, s3_complex:"130R Approach", deploy_amount2:15, final_corner:"Casio Triangle (Chicane)", final_harvest:12 },
+  Silverstone: { type:"High Speed / High Lateral Load", t1_name:"Village & The Loop", t1_harvest:10, straight_name:"Wellington Straight", t2_name:"Brooklands (T6)", t2_harvest:8, deploy_corners:"Luffield Exit", deploy_amount1:15, s3_complex:"Maggotts & Becketts Exit", deploy_amount2:18, final_corner:"Vale Chicane", final_harvest:10 }
+};
+
+async function runErs(){
+  const term = document.getElementById('ers-terminal');
+  const circuitName = document.getElementById('ers-circuit').value;
+  const engineMode = toggleVal('ers-mode-toggle');
+  const initialSoc = parseInt(document.getElementById('ers-soc').value, 10);
+  const targetGap = document.getElementById('ers-gap').value/10;
+  const track = CIRCUITS[circuitName];
+
+  await bootSequence(term, [
+    '[PROCESSING MODEL CONFIGURATION...]',
+    '[||||||| ] Mapping MGU-K Kinetic Harvest Zones',
+    '[||||||||||||] Mapping 100kW Regulation Derating Ramps',
+    '[||||||||||||||||] Monitoring 7MJ Energy Cap Compliance',
+    '[||||||||||||||||||||] Configuration Complete.'
+  ]);
+
+  let runningSoc = initialSoc;
+  let totalHarvestedMj = 0.0;
+  let harvestCapTriggered = false;
+  const log = [];
+
+  function processHarvest(baseGain){
+    const mjGain = baseGain * 0.58;
+    if(harvestCapTriggered) return 0;
+    if((totalHarvestedMj + mjGain) >= 7.0){
+      harvestCapTriggered = true;
+      const allowedMj = 7.0 - totalHarvestedMj;
+      totalHarvestedMj = 7.0;
+      return Math.trunc(allowedMj / 0.58);
+    } else {
+      totalHarvestedMj += mjGain;
+      return baseGain;
+    }
+  }
+
+  const momActive = targetGap < 1.0;
+  log.push({type:'h', text: momActive ? 'PROTOCOL ENGAGED' : 'PROTOCOL: STANDARD RUNNING'});
+  log.push({type:'diag', cls: momActive?'warn':'good', text: momActive
+    ? 'Delta to target &lt; 1.0s. Manual Override Mode (MOM) active. +0.5MJ allocation applied to ERS-K deployment curve.'
+    : 'Delta to target ≥ 1.0s. Standard ERS mapping tracking profiles.'});
+
+  log.push({type:'h', text:'SECTOR 1'});
+  let gained = processHarvest(track.t1_harvest);
+  runningSoc += gained;
+  log.push({type:'row', k:track.t1_name, v:`MGU-K MAX HARVEST (+${gained}% SOC)`, good:true});
+
+  if(momActive && engineMode==='Overtake'){
+    runningSoc -= 20;
+    log.push({type:'row', k:track.straight_name, v:'MOM DEPLOY — constant 350kW (−20% SOC)', bad:true});
+  } else {
+    log.push({type:'row', k:track.straight_name, v:'HOLD — deployment inhibited via aero drag optimization (0% SOC)'});
+  }
+
+  log.push({type:'h', text:'SECTOR 2'});
+  if(engineMode==='Overtake' || momActive){
+    log.push({type:'row', k:track.t2_name+' Approach', v:'[DERATING] 100kW ramp-down active (−50m window)', warn:true});
+  } else {
+    log.push({type:'row', k:track.t2_name+' Approach', v:'Coast profiling — linear synchronization active'});
+  }
+  gained = processHarvest(track.t2_harvest);
+  runningSoc += gained;
+  log.push({type:'row', k:track.t2_name, v:`MGU-K MEDIUM HARVEST (+${gained}% SOC)`, good:true});
+
+  runningSoc -= track.deploy_amount1;
+  log.push({type:'row', k:track.deploy_corners, v:`STANDARD DEPLOY — short burst (−${track.deploy_amount1}% SOC)`, bad:true});
+
+  log.push({type:'h', text:'SECTOR 3'});
+  runningSoc -= track.deploy_amount2;
+  log.push({type:'row', k:track.s3_complex, v:`STANDARD DEPLOY — apex exit burst (−${track.deploy_amount2}% SOC)`, bad:true});
+
+  gained = processHarvest(track.final_harvest);
+  runningSoc += gained;
+  log.push({type:'row', k:track.final_corner, v:`MGU-K HARVEST on entry (+${gained}% SOC)`, good:true});
+
+  if(harvestCapTriggered){
+    log.push({type:'row', k:'Main Straight', v:'[FIA LIMIT REACHED] 7MJ energy cap triggered — MGU-K generation isolated', warn:true});
+  } else {
+    gained = processHarvest(4);
+    runningSoc += gained;
+    if(harvestCapTriggered){
+      log.push({type:'row', k:'Main Straight', v:'[FIA LIMIT REACHED] 7MJ cap triggered mid-straight', warn:true});
+    } else {
+      log.push({type:'row', k:'Main Straight', v:`Low-load harvest consolidation active (+${gained}% SOC)`, good:true});
+    }
+  }
+
+  const netDelta = runningSoc - initialSoc;
+
+  const rowsHtml = log.map(item=>{
+    if(item.type==='h') return `<div class="t-h">${esc(item.text)}</div>`;
+    if(item.type==='diag') return `<div class="t-diag ${item.cls}">${item.text}</div>`;
+    const cls = item.good?'t-good':item.bad?'t-bad':item.warn?'t-warn':'';
+    return `<div class="t-row"><span class="k">${esc(item.k)}</span><span class="v ${cls}">${item.v}</span></div>`;
+  }).join('');
+
+  term.innerHTML = `
+<div class="t-h">&gt;&gt; HYBRID STRATEGY: ${esc(circuitName.toUpperCase())} (${esc(track.type)}) &lt;&lt;</div>
+<div class="t-row"><span class="k">Target mode</span><span class="v">${esc(engineMode.toUpperCase())}</span></div>
+<div class="t-row"><span class="k">Initial SOC</span><span class="v">${initialSoc}%</span></div>
+${rowsHtml}
+<div class="t-h">STINT METRICS</div>
+<div class="t-row"><span class="k">Net lap delta</span><span class="v ${netDelta<0?'t-bad':'t-good'}">${netDelta>0?'+':''}${netDelta}% battery</span></div>
+<div class="t-row"><span class="k">Terminal lap SOC</span><span class="v">${runningSoc}%</span></div>
+${runningSoc < 20
+  ? `<div class="t-diag bad"><strong>WARNING —</strong> SOC below critical threshold (&lt;20%). Toggle to RECHARGE engine mode.</div>`
+  : `<div class="t-diag good"><strong>STATUS —</strong> ERS storage capacity parameters within acceptable operational bands.</div>`}`;
+  term.scrollTop = 0;
+}
+</script>
+
+</body>
+</html>
